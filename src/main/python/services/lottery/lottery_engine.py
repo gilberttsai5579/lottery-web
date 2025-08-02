@@ -179,9 +179,21 @@ class LotteryEngine:
             ScrapingError: If scraping fails
         """
         try:
-            scraper = ScraperFactory.create_scraper(url)
-            with scraper:
-                comments = scraper.scrape_comments(url)
+            # Try Selenium scraper first for better success rate
+            scraper = None
+            try:
+                self.logger.info("Attempting to use Selenium scraper for better compatibility...")
+                scraper = ScraperFactory.create_scraper(url, use_selenium=True)
+                with scraper:
+                    comments = scraper.scrape_comments(url)
+            except Exception as selenium_error:
+                self.logger.warning(f"Selenium scraper failed: {selenium_error}")
+                self.logger.info("Falling back to traditional scraper...")
+                
+                # Fallback to traditional scraper
+                scraper = ScraperFactory.create_scraper(url, use_selenium=False)
+                with scraper:
+                    comments = scraper.scrape_comments(url)
             
             # Filter out empty or invalid comments
             valid_comments = []

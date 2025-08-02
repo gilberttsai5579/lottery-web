@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 from .base_scraper import BaseScraper, ScrapingError
 from .threads_scraper import ThreadsScraper
 from .instagram_scraper import InstagramScraper
+from .selenium_threads_scraper import SeleniumThreadsScraper
 
 
 class ScraperFactory:
@@ -16,16 +17,18 @@ class ScraperFactory:
     
     _scrapers = {
         'threads': ThreadsScraper,
+        'threads_selenium': SeleniumThreadsScraper,
         'instagram': InstagramScraper,
     }
     
     @classmethod
-    def create_scraper(cls, url: str, **kwargs) -> BaseScraper:
+    def create_scraper(cls, url: str, use_selenium: bool = True, **kwargs) -> BaseScraper:
         """
         Create appropriate scraper based on URL
         
         Args:
             url: URL to scrape
+            use_selenium: Whether to use Selenium-based scraper when available
             **kwargs: Additional arguments for scraper initialization
             
         Returns:
@@ -36,10 +39,19 @@ class ScraperFactory:
         """
         platform = cls.detect_platform(url)
         
-        if platform not in cls._scrapers:
-            raise ScrapingError(f"No scraper available for platform: {platform}")
+        # Select scraper type based on platform and selenium preference
+        scraper_key = platform
+        if use_selenium and platform == 'threads':
+            scraper_key = 'threads_selenium'
         
-        scraper_class = cls._scrapers[platform]
+        if scraper_key not in cls._scrapers:
+            # Fallback to basic scraper if selenium version not available
+            if scraper_key != platform and platform in cls._scrapers:
+                scraper_key = platform
+            else:
+                raise ScrapingError(f"No scraper available for platform: {platform}")
+        
+        scraper_class = cls._scrapers[scraper_key]
         return scraper_class(**kwargs)
     
     @classmethod
