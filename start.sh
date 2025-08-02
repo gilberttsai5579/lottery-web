@@ -21,7 +21,7 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "🚀 Launching Flask application..."
-echo "📱 Access at: http://localhost:5000"
+echo "📱 Will display access URL when started"
 echo "🛑 Press Ctrl+C to stop"
 
 python run.py
