@@ -16,7 +16,7 @@ class ThreadsScraper(BaseScraper):
     Scraper for Threads posts
     """
     
-    THREADS_DOMAINS = ['threads.net', 'www.threads.net']
+    THREADS_DOMAINS = ['threads.com', 'www.threads.com', 'threads.net', 'www.threads.net']
     
     def validate_url(self, url: str) -> bool:
         """
@@ -48,7 +48,7 @@ class ThreadsScraper(BaseScraper):
             Post ID string
         """
         try:
-            # Threads URL format: https://www.threads.net/@username/post/POST_ID
+            # Threads URL format: https://www.threads.com/@username/post/POST_ID
             path_parts = urlparse(url).path.split('/')
             post_index = path_parts.index('post')
             if post_index + 1 < len(path_parts):

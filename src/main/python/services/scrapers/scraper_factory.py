@@ -60,7 +60,7 @@ class ScraperFactory:
             parsed = urlparse(url)
             domain = parsed.netloc.lower()
             
-            if 'threads.net' in domain:
+            if 'threads.com' in domain or 'threads.net' in domain:
                 return 'threads'
             elif 'instagram.com' in domain:
                 return 'instagram'

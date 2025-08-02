@@ -106,7 +106,8 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const urlObj = new URL(url);
             const hostname = urlObj.hostname.toLowerCase();
-            return hostname.includes('threads.net') || 
+            return hostname.includes('threads.com') || 
+                   hostname.includes('threads.net') ||
                    hostname.includes('instagram.com');
         } catch {
             return false;
