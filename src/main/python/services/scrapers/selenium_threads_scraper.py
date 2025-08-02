@@ -11,14 +11,24 @@ from urllib.parse import urlparse
 
 from ...models import Comment
 from .selenium_base_scraper import SeleniumBaseScraper, ScrapingError
+from ...auth import AuthManager
+from ...config.auth_config import auth_config
 
 
 class SeleniumThreadsScraper(SeleniumBaseScraper):
     """
-    Selenium-powered scraper for Threads posts
+    Selenium-powered scraper for Threads posts with authentication support
     """
     
     THREADS_DOMAINS = ['threads.com', 'www.threads.com', 'threads.net', 'www.threads.net']
+    
+    def __init__(self, *args, **kwargs):
+        """Initialize Selenium Threads scraper with authentication support"""
+        super().__init__(*args, **kwargs)
+        
+        # Initialize authentication manager
+        self.auth_manager = AuthManager(auth_config)
+        self.logger.info("Initialized Selenium Threads scraper with authentication support")
     
     # Common selectors for Threads elements (will be dynamically discovered)
     COMMENT_SELECTORS = [
@@ -78,7 +88,7 @@ class SeleniumThreadsScraper(SeleniumBaseScraper):
     
     def scrape_comments(self, url: str) -> List[Comment]:
         """
-        Scrape comments from Threads post using Selenium
+        Scrape comments from Threads post using Selenium with authentication
         """
         if not self.validate_url(url):
             raise ScrapingError("Invalid Threads URL")
@@ -89,9 +99,21 @@ class SeleniumThreadsScraper(SeleniumBaseScraper):
             # Navigate to the URL
             page_source = self._make_request(url)
             
-            # Wait for the page to load and check for login redirect
+            # Check if authentication is required and handle it
             if self._check_login_required():
-                raise ScrapingError("Threads requires login to view this content")
+                self.logger.info("Authentication required, attempting to authenticate...")
+                
+                if self.auth_manager.authenticate_for_url(self.driver, url):
+                    self.logger.info("Authentication successful, retrying page load...")
+                    # Retry loading the page after authentication
+                    self.driver.refresh()
+                    time.sleep(3)
+                    
+                    # Check again if login is still required
+                    if self._check_login_required():
+                        raise ScrapingError("Authentication failed - still requires login")
+                else:
+                    raise ScrapingError("Authentication was not completed")
             
             # Wait for comment section to load
             self._wait_for_comments_section()
@@ -453,3 +475,21 @@ class SeleniumThreadsScraper(SeleniumBaseScraper):
                 unique_comments.append(comment)
         
         return unique_comments
+    
+    def cleanup(self):
+        """
+        Clean up resources including authentication state
+        """
+        # Cleanup authentication if needed
+        if hasattr(self, 'auth_manager') and self.auth_manager:
+            try:
+                if self.auth_manager.is_authenticated:
+                    self.logger.info("Cleaning up authentication state")
+                    # Note: We don't logout here to preserve cookies for future use
+                    # Only clear the in-memory state
+                    self.auth_manager.is_authenticated = False
+            except Exception as e:
+                self.logger.warning(f"Error during auth cleanup: {e}")
+        
+        # Call parent cleanup
+        super().cleanup()
