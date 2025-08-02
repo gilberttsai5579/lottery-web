@@ -254,6 +254,55 @@ main {
     justify-content: center;
 }
 
+/* Error Section */
+.error-section {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    padding: 2rem;
+    margin: 2rem 0;
+    border-left: 4px solid var(--danger-color);
+}
+
+.error-section h2 {
+    color: var(--danger-color);
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+}
+
+.error-info {
+    margin-bottom: 1.5rem;
+}
+
+.error-info p {
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+}
+
+.error-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* No Winner Info */
+.no-winner-info {
+    background-color: #fef3c7;
+    border: 1px solid #f59e0b;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+}
+
+.no-winner-info p {
+    margin-bottom: 0.5rem;
+    color: #92400e;
+}
+
+.no-winner-info strong {
+    color: #78350f;
+}
+
 /* Footer */
 footer {
     background-color: white;

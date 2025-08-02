@@ -101,10 +101,31 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await response.json();
             console.log('Response data:', result);
 
-            if (response.ok && result.success) {
-                // Display results
-                displayResults(result);
-                currentResultId = result.result_id;
+            if (response.ok) {
+                if (result.success) {
+                    // Display results
+                    displayResults(result);
+                    currentResultId = result.result_id;
+                } else {
+                    // 處理後端返回的失敗結果（如零參與者情況）
+                    if (result.total_participants === 0) {
+                        showError(
+                            "無法從該貼文中找到任何留言<br><br>" +
+                            "<strong>可能的原因：</strong><br>" +
+                            "• 該貼文沒有留言<br>" +
+                            "• 貼文被設為私人或限制訪問<br>" +
+                            "• 爬取過程遇到技術問題<br><br>" +
+                            "<strong>建議解決方案：</strong><br>" +
+                            "• 確認貼文是公開的且有留言存在<br>" +
+                            "• 嘗試使用其他有留言的貼文<br>" +
+                            "• 檢查網路連線後重試"
+                        );
+                    } else {
+                        // 有參與者但抽獎失敗的其他情況
+                        displayResults(result);
+                        currentResultId = result.id;
+                    }
+                }
             } else {
                 throw new Error(result.error || '抽獎失敗');
             }
@@ -197,11 +218,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const result = await response.json();
 
-            if (response.ok && result.success) {
-                displayResults(result);
-                currentResultId = result.result_id;
+            if (response.ok) {
+                if (result.success) {
+                    displayResults(result);
+                    currentResultId = result.result_id;
+                } else {
+                    // 處理後端返回的失敗結果（如零參與者情況）
+                    if (result.total_participants === 0) {
+                        showError(
+                            "無法從該貼文中找到任何留言<br><br>" +
+                            "<strong>可能的原因：</strong><br>" +
+                            "• 該貼文沒有留言<br>" +
+                            "• 貼文被設為私人或限制訪問<br>" +
+                            "• 爬取過程遇到技術問題<br><br>" +
+                            "<strong>建議解決方案：</strong><br>" +
+                            "• 確認貼文是公開的且有留言存在<br>" +
+                            "• 嘗試使用其他有留言的貼文<br>" +
+                            "• 檢查網路連線後重試"
+                        );
+                    } else {
+                        displayResults(result);
+                        currentResultId = result.id;
+                    }
+                }
             } else {
-                throw new Error(result.error || '抽獎失敗');
+                throw new Error(result.error || '重試失敗');
             }
         } catch (error) {
             console.error('Retry lottery error:', error);
@@ -238,6 +279,22 @@ document.addEventListener('DOMContentLoaded', function() {
         // Hide loading first
         hideLoading();
         
+        // 檢查是否為零參與者的情況
+        if (result.total_participants === 0) {
+            showError(
+                "無法從該貼文中找到任何留言<br><br>" +
+                "<strong>可能的原因：</strong><br>" +
+                "• 該貼文沒有留言<br>" +
+                "• 貼文被設為私人或限制訪問<br>" +
+                "• 網路連線問題<br><br>" +
+                "<strong>建議解決方案：</strong><br>" +
+                "• 確認貼文是公開的且有留言存在<br>" +
+                "• 嘗試使用其他有留言的貼文<br>" +
+                "• 檢查網路連線後重試"
+            );
+            return;
+        }
+        
         // Update result info
         document.getElementById('result-time').textContent = formatDateTime(result.timestamp);
         document.getElementById('result-mode').textContent = getModeName(result.mode);
@@ -253,7 +310,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 winnersList.appendChild(winnerCard);
             });
         } else {
-            winnersList.innerHTML = '<p>沒有符合條件的參與者</p>';
+            // 有參與者但沒有中獎者的情況
+            const mode = result.mode || lastFormData?.mode;
+            let noWinnerMessage = '<div class="no-winner-info">';
+            noWinnerMessage += '<p><strong>沒有符合條件的中獎者</strong></p>';
+            noWinnerMessage += `<p>總參與人數：${result.total_participants} 人</p>`;
+            
+            if (mode === '1' && lastFormData?.keyword) {
+                noWinnerMessage += `<p>搜尋關鍵字：「${lastFormData.keyword}」</p>`;
+                noWinnerMessage += '<p><strong>建議：</strong>嘗試使用不同的關鍵字或改用「所有留言者」模式</p>';
+            } else if (mode === '3' && lastFormData?.mention_count) {
+                noWinnerMessage += `<p>需要標註 ${lastFormData.mention_count} 個帳號</p>`;
+                noWinnerMessage += '<p><strong>建議：</strong>降低標註帳號要求數量或改用其他模式</p>';
+            }
+            
+            noWinnerMessage += '</div>';
+            winnersList.innerHTML = noWinnerMessage;
         }
 
         // Show results section
@@ -316,7 +388,8 @@ document.addEventListener('DOMContentLoaded', function() {
         results.style.display = 'none';
         errorSection.style.display = 'block';
         if (errorMessage) {
-            errorMessage.textContent = message;
+            // 處理多行錯誤訊息
+            errorMessage.innerHTML = message.replace(/\n/g, '<br>');
         }
         console.log('Error shown:', message);
     }

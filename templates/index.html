@@ -73,7 +73,10 @@
             <!-- Loading Indicator -->
             <div id="loading" class="loading" style="display: none;">
                 <div class="spinner"></div>
-                <p>正在爬取留言資料，請稍候...</p>
+                <p id="loading-text">正在爬取留言資料，請稍候...</p>
+                <div class="loading-actions">
+                    <button id="cancel-btn" class="btn btn-secondary">取消</button>
+                </div>
             </div>
 
             <!-- Results Section -->
@@ -88,6 +91,18 @@
                 <div class="result-actions">
                     <button id="download-btn" class="btn btn-success">下載 Excel</button>
                     <button id="reset-btn" class="btn btn-secondary">重新抽獎</button>
+                </div>
+            </div>
+
+            <!-- Error Section -->
+            <div id="error-section" class="error-section" style="display: none;">
+                <h2>😔 出現錯誤</h2>
+                <div class="error-info">
+                    <p id="error-message"></p>
+                </div>
+                <div class="error-actions">
+                    <button id="retry-btn" class="btn btn-primary">重試</button>
+                    <button id="back-btn" class="btn btn-secondary">返回</button>
                 </div>
             </div>
         </main>

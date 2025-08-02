@@ -81,6 +81,17 @@ class LotteryEngine:
             comments = self._scrape_comments(url)
             result.platform = ScraperFactory.detect_platform(url)
             
+            # Check if we got any comments
+            if not comments:
+                self.logger.warning(f"No comments found for URL: {url}")
+                raise ValueError(
+                    "無法從該貼文中找到任何留言。可能的原因：\n"
+                    "• 該貼文沒有留言\n"
+                    "• 貼文被設為私人或限制訪問\n"
+                    "• 網路連線問題\n"
+                    "請確認貼文是公開的且有留言存在，然後重試"
+                )
+            
             # Add all comments as participants
             for comment in comments:
                 result.add_participant(comment)
@@ -88,6 +99,25 @@ class LotteryEngine:
             # Conduct the lottery
             self.logger.info(f"Conducting lottery with {len(comments)} comments")
             result.conduct_lottery(seed=seed)
+            
+            # Check if we have any eligible participants
+            if result.eligible_count == 0:
+                mode_descriptions = {
+                    "1": f"包含關鍵字「{keyword}」",
+                    "2": "符合抽獎條件",
+                    "3": f"標註至少 {mention_count_required} 個帳號"
+                }
+                mode_desc = mode_descriptions.get(mode, "符合條件")
+                
+                raise ValueError(
+                    f"沒有找到{mode_desc}的留言。\n"
+                    f"總留言數：{len(comments)} 條\n"
+                    f"符合條件：0 條\n\n"
+                    "建議：\n"
+                    "• 檢查篩選條件是否過於嚴格\n"
+                    "• 嘗試使用不同的關鍵字或模式\n"
+                    "• 確認貼文中確實有符合條件的留言"
+                )
             
             # Cache result
             self.results_cache[result.id] = result
