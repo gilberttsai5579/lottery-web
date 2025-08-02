@@ -10,10 +10,10 @@ import traceback
 
 from config import config
 
-# Import services (to be implemented)
-# from src.main.python.services.scrapers import ThreadsScraper, InstagramScraper
-# from src.main.python.services.lottery import LotteryEngine
-# from src.main.python.utils.excel_export import ExcelExporter
+# Import services
+from src.main.python.services.lottery import LotteryEngine
+from src.main.python.services.scrapers import ScraperFactory, ScrapingError
+from src.main.python.utils import ExcelExporter
 
 def create_app(config_name=None):
     """Application factory pattern"""
@@ -36,6 +36,10 @@ def create_app(config_name=None):
 def register_routes(app):
     """Register all application routes"""
     
+    # Initialize services
+    lottery_engine = LotteryEngine()
+    excel_exporter = ExcelExporter(output_dir=app.config['OUTPUT_DIR'])
+    
     @app.route('/')
     def index():
         """Main page"""
@@ -46,12 +50,13 @@ def register_routes(app):
         """Execute lottery"""
         try:
             data = request.get_json()
+            app.logger.info(f"Lottery request: {data}")
             
             # Extract parameters
             url = data.get('url')
             mode = data.get('mode')
             keyword = data.get('keyword', '')
-            mention_count = data.get('mention_count', 0)
+            mention_count = data.get('mention_count', 1)
             winner_count = data.get('winner_count', 1)
             
             # Validate inputs
@@ -61,44 +66,136 @@ def register_routes(app):
             if mode not in ['1', '2', '3']:
                 return jsonify({'error': 'Invalid lottery mode'}), 400
             
-            # TODO: Implement lottery logic
-            # 1. Detect platform (Threads or Instagram)
-            # 2. Scrape comments
-            # 3. Apply lottery logic based on mode
-            # 4. Generate results
+            if winner_count < 1:
+                return jsonify({'error': 'Winner count must be at least 1'}), 400
             
-            # Placeholder response
-            result = {
-                'success': True,
-                'timestamp': datetime.now().isoformat(),
-                'mode': mode,
-                'total_participants': 0,
-                'winners': [],
-                'result_id': 'placeholder_id'
-            }
+            # Check if URL is supported
+            if not ScraperFactory.is_supported_url(url):
+                return jsonify({'error': 'Unsupported URL format. Please use Threads or Instagram post URLs.'}), 400
             
-            return jsonify(result)
+            # Conduct lottery
+            try:
+                result = lottery_engine.conduct_lottery(
+                    url=url,
+                    mode=mode,
+                    winner_count=winner_count,
+                    keyword=keyword,
+                    mention_count_required=mention_count
+                )
+                
+                # Return result
+                return jsonify(result.to_dict())
+                
+            except ScrapingError as e:
+                app.logger.error(f"Scraping error: {e}")
+                return jsonify({'error': f'Failed to scrape comments: {str(e)}'}), 400
+            
+            except ValueError as e:
+                app.logger.error(f"Validation error: {e}")
+                return jsonify({'error': str(e)}), 400
             
         except Exception as e:
             app.logger.error(f"Lottery error: {str(e)}")
             app.logger.error(traceback.format_exc())
-            return jsonify({'error': 'An error occurred during lottery'}), 500
+            return jsonify({'error': 'An unexpected error occurred during lottery'}), 500
+    
+    @app.route('/preview', methods=['POST'])
+    def preview():
+        """Preview participants without conducting lottery"""
+        try:
+            data = request.get_json()
+            
+            # Extract parameters
+            url = data.get('url')
+            mode = data.get('mode')
+            keyword = data.get('keyword', '')
+            mention_count = data.get('mention_count', 1)
+            
+            # Validate inputs
+            if not url:
+                return jsonify({'error': 'URL is required'}), 400
+            
+            if mode not in ['1', '2', '3']:
+                return jsonify({'error': 'Invalid lottery mode'}), 400
+            
+            if not ScraperFactory.is_supported_url(url):
+                return jsonify({'error': 'Unsupported URL format'}), 400
+            
+            # Get preview
+            preview_result = lottery_engine.preview_participants(
+                url=url,
+                mode=mode,
+                keyword=keyword,
+                mention_count_required=mention_count
+            )
+            
+            return jsonify(preview_result)
+            
+        except Exception as e:
+            app.logger.error(f"Preview error: {str(e)}")
+            return jsonify({'error': 'An error occurred during preview'}), 500
     
     @app.route('/download/<result_id>')
     def download(result_id):
         """Download Excel file with lottery results"""
         try:
-            # TODO: Implement Excel download
-            # 1. Retrieve lottery results by ID
-            # 2. Generate Excel file
-            # 3. Return file for download
+            # Retrieve lottery result
+            result = lottery_engine.get_result(result_id)
+            if not result:
+                return jsonify({'error': 'Lottery result not found'}), 404
             
-            # Placeholder
-            return jsonify({'error': 'Download not yet implemented'}), 501
+            # Generate Excel file
+            filename = excel_exporter.export_lottery_result(result)
+            
+            # Return file for download
+            return send_file(
+                filename,
+                as_attachment=True,
+                download_name=f"lottery_result_{result_id}.xlsx",
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
             
         except Exception as e:
             app.logger.error(f"Download error: {str(e)}")
+            app.logger.error(traceback.format_exc())
             return jsonify({'error': 'An error occurred during download'}), 500
+    
+    @app.route('/api/health')
+    def health_check():
+        """Health check endpoint"""
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.now().isoformat(),
+            'supported_platforms': ScraperFactory.get_supported_platforms()
+        })
+    
+    @app.route('/api/validate-url', methods=['POST'])
+    def validate_url():
+        """Validate if URL is supported"""
+        try:
+            data = request.get_json()
+            url = data.get('url')
+            
+            if not url:
+                return jsonify({'valid': False, 'error': 'URL is required'})
+            
+            is_valid = ScraperFactory.is_supported_url(url)
+            platform = None
+            
+            if is_valid:
+                try:
+                    platform = ScraperFactory.detect_platform(url)
+                except:
+                    pass
+            
+            return jsonify({
+                'valid': is_valid,
+                'platform': platform,
+                'supported_platforms': ScraperFactory.get_supported_platforms()
+            })
+            
+        except Exception as e:
+            return jsonify({'valid': False, 'error': str(e)})
     
     @app.errorhandler(404)
     def not_found(error):
