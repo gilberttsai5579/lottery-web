@@ -8,11 +8,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const mode3Params = document.getElementById('mode-3-params');
     const loading = document.getElementById('loading');
     const results = document.getElementById('results');
+    const errorSection = document.getElementById('error-section');
     const downloadBtn = document.getElementById('download-btn');
     const resetBtn = document.getElementById('reset-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const retryBtn = document.getElementById('retry-btn');
+    const backBtn = document.getElementById('back-btn');
+    const loadingText = document.getElementById('loading-text');
+    const errorMessage = document.getElementById('error-message');
 
-    // Current result ID
+    // Current result ID and request controller
     let currentResultId = null;
+    let currentController = null;
+    let lastFormData = null;
 
     // Mode change handler
     modeRadios.forEach(radio => {
@@ -31,9 +39,12 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Form submit handler
-    form.addEventListener('submit', async function(e) {
+    form.addEventListener('submit', function(e) {
         e.preventDefault();
+        submitLottery();
+    });
 
+    async function submitLottery() {
         // Get form data
         const formData = new FormData(form);
         const data = {
@@ -49,28 +60,46 @@ document.addEventListener('DOMContentLoaded', function() {
             data.mention_count = parseInt(formData.get('mention_count'));
         }
 
+        // Store form data for retry
+        lastFormData = data;
+
+        console.log('Submitting lottery request:', data);
+
         // Validate URL
         if (!isValidUrl(data.url)) {
-            alert('請輸入有效的 Threads 或 Instagram 網址');
+            showError('請輸入有效的 Threads 或 Instagram 網址');
             return;
         }
 
         // Show loading
-        form.style.display = 'none';
-        loading.style.display = 'block';
-        results.style.display = 'none';
+        showLoading('正在驗證網址...');
 
         try {
-            // Send request
+            // Create new controller for this request
+            currentController = new AbortController();
+            const timeoutId = setTimeout(() => {
+                if (currentController) {
+                    currentController.abort();
+                }
+            }, 60000); // 60 seconds timeout
+
+            updateLoadingText('正在爬取留言資料...');
+
             const response = await fetch('/lottery', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(data)
+                body: JSON.stringify(data),
+                signal: currentController.signal
             });
 
+            clearTimeout(timeoutId);
+
+            console.log('Response status:', response.status);
+
             const result = await response.json();
+            console.log('Response data:', result);
 
             if (response.ok && result.success) {
                 // Display results
@@ -80,12 +109,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(result.error || '抽獎失敗');
             }
         } catch (error) {
-            alert('錯誤：' + error.message);
-            resetForm();
+            console.error('Lottery error:', error);
+            
+            let errorMsg = '抽獎過程中發生錯誤';
+            if (error.name === 'AbortError') {
+                errorMsg = '請求已取消或超時';
+            } else if (error.message) {
+                errorMsg = error.message;
+            }
+            
+            showError(errorMsg);
         } finally {
-            loading.style.display = 'none';
+            currentController = null;
         }
-    });
+    }
 
     // Download button handler
     if (downloadBtn) {
@@ -99,6 +136,87 @@ document.addEventListener('DOMContentLoaded', function() {
     // Reset button handler
     if (resetBtn) {
         resetBtn.addEventListener('click', resetForm);
+    }
+
+    // Cancel button handler
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', function() {
+            if (currentController) {
+                currentController.abort();
+                console.log('Request cancelled by user');
+            }
+            resetForm();
+        });
+    }
+
+    // Retry button handler
+    if (retryBtn) {
+        retryBtn.addEventListener('click', function() {
+            if (lastFormData) {
+                console.log('Retrying with last form data');
+                hideError();
+                submitLotteryWithData(lastFormData);
+            } else {
+                resetForm();
+            }
+        });
+    }
+
+    // Back button handler
+    if (backBtn) {
+        backBtn.addEventListener('click', resetForm);
+    }
+
+    async function submitLotteryWithData(data) {
+        console.log('Submitting lottery request (retry):', data);
+
+        // Show loading
+        showLoading('正在重新嘗試...');
+
+        try {
+            // Create new controller for this request
+            currentController = new AbortController();
+            const timeoutId = setTimeout(() => {
+                if (currentController) {
+                    currentController.abort();
+                }
+            }, 60000); // 60 seconds timeout
+
+            updateLoadingText('正在爬取留言資料...');
+
+            const response = await fetch('/lottery', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data),
+                signal: currentController.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                displayResults(result);
+                currentResultId = result.result_id;
+            } else {
+                throw new Error(result.error || '抽獎失敗');
+            }
+        } catch (error) {
+            console.error('Retry lottery error:', error);
+            
+            let errorMsg = '重試失敗';
+            if (error.name === 'AbortError') {
+                errorMsg = '請求已取消或超時';
+            } else if (error.message) {
+                errorMsg = error.message;
+            }
+            
+            showError(errorMsg);
+        } finally {
+            currentController = null;
+        }
     }
 
     // Helper functions
@@ -115,6 +233,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function displayResults(result) {
+        console.log('Displaying results:', result);
+        
+        // Hide loading first
+        hideLoading();
+        
         // Update result info
         document.getElementById('result-time').textContent = formatDateTime(result.timestamp);
         document.getElementById('result-mode').textContent = getModeName(result.mode);
@@ -135,6 +258,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Show results section
         results.style.display = 'block';
+        console.log('Results displayed successfully');
     }
 
     function createWinnerCard(winner, rank) {
@@ -169,14 +293,57 @@ document.addEventListener('DOMContentLoaded', function() {
         return date.toLocaleString('zh-TW');
     }
 
-    function resetForm() {
-        form.style.display = 'block';
+    function showLoading(text = '正在處理，請稍候...') {
+        form.style.display = 'none';
+        loading.style.display = 'block';
         results.style.display = 'none';
+        errorSection.style.display = 'none';
+        if (loadingText) {
+            loadingText.textContent = text;
+        }
+        console.log('Loading state: shown with text:', text);
+    }
+
+    function updateLoadingText(text) {
+        if (loadingText) {
+            loadingText.textContent = text;
+            console.log('Loading text updated:', text);
+        }
+    }
+
+    function showError(message) {
+        hideLoading();
+        results.style.display = 'none';
+        errorSection.style.display = 'block';
+        if (errorMessage) {
+            errorMessage.textContent = message;
+        }
+        console.log('Error shown:', message);
+    }
+
+    function hideError() {
+        errorSection.style.display = 'none';
+        console.log('Error hidden');
+    }
+
+    function hideLoading() {
+        loading.style.display = 'none';
+        form.style.display = 'block';
+        console.log('Loading state: hidden');
+    }
+
+    function resetForm() {
+        hideLoading();
+        hideError();
+        results.style.display = 'none';
+        form.style.display = 'block';
         form.reset();
         currentResultId = null;
+        lastFormData = null;
         
         // Reset to mode 1
         mode1Params.style.display = 'block';
         mode3Params.style.display = 'none';
+        console.log('Form reset completed');
     }
 });
