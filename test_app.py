@@ -9,7 +9,7 @@ import time
 def test_app_running():
     """測試應用程式是否正在運行"""
     try:
-        response = requests.get('http://localhost:5002/', timeout=5)
+        response = requests.get('http://localhost:5001/', timeout=5)
         print(f"✅ 應用程式正在運行 - 狀態碼: {response.status_code}")
         return True
     except requests.exceptions.RequestException as e:
@@ -19,7 +19,7 @@ def test_app_running():
 def test_health_check():
     """測試健康檢查端點"""
     try:
-        response = requests.get('http://localhost:5002/api/health', timeout=5)
+        response = requests.get('http://localhost:5001/api/health', timeout=5)
         if response.status_code == 200:
             data = response.json()
             print(f"✅ 健康檢查通過")
@@ -44,7 +44,7 @@ def test_url_validation():
     for url, expected in test_urls:
         try:
             response = requests.post(
-                'http://localhost:5002/api/validate-url',
+                'http://localhost:5001/api/validate-url',
                 json={'url': url},
                 timeout=5
             )
@@ -68,7 +68,7 @@ def test_error_handling():
     try:
         # 測試無效的抽獎請求
         response = requests.post(
-            'http://localhost:5002/lottery',
+            'http://localhost:5001/lottery',
             json={'url': '', 'mode': '1', 'winner_count': 0},
             timeout=5
         )
