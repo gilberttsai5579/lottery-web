@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抽獎結果 - Threads/IG 抽獎工具</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎉 抽獎結果</h1>
+        </header>
+
+        <main>
+            <div class="result-summary">
+                <div class="info-card">
+                    <h3>抽獎資訊</h3>
+                    <dl>
+                        <dt>抽獎時間</dt>
+                        <dd>{{ result.timestamp }}</dd>
+                        <dt>抽獎模式</dt>
+                        <dd>{{ result.mode_name }}</dd>
+                        <dt>總參與人數</dt>
+                        <dd>{{ result.total_participants }}</dd>
+                        <dt>中獎人數</dt>
+                        <dd>{{ result.winner_count }}</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="winners-section">
+                <h2>🏆 中獎名單</h2>
+                <div class="winners-grid">
+                    {% for winner in result.winners %}
+                    <div class="winner-card">
+                        <img src="{{ winner.avatar_url }}" alt="{{ winner.username }}" class="winner-avatar">
+                        <div class="winner-info">
+                            <h4>@{{ winner.username }}</h4>
+                            <p class="winner-comment">{{ winner.comment }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="actions">
+                <a href="/download/{{ result.id }}" class="btn btn-success">
+                    📥 下載 Excel 檔案
+                </a>
+                <a href="/" class="btn btn-primary">
+                    🎯 進行新的抽獎
+                </a>
+            </div>
+        </main>
+
+        <footer>
+            <p>© 2024 Lottery Web - Built with Flask</p>
+        </footer>
+    </div>
+</body>
+</html>

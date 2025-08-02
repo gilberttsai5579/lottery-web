@@ -1,0 +1,1 @@
+# Main Python package for lottery web application

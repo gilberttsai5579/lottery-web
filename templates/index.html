@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threads/IG 抽獎工具</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 Threads/IG 抽獎工具</h1>
+            <p>輕鬆從 Threads 和 Instagram 貼文留言中進行抽獎</p>
+        </header>
+
+        <main>
+            <form id="lottery-form">
+                <!-- URL Input -->
+                <div class="form-group">
+                    <label for="post-url">貼文網址</label>
+                    <input type="url" id="post-url" name="url" placeholder="輸入 Threads 或 Instagram 貼文網址" required>
+                    <small class="form-text">支援 Threads 和 Instagram 公開貼文</small>
+                </div>
+
+                <!-- Lottery Mode Selection -->
+                <div class="form-group">
+                    <label>抽獎模式</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="mode" value="1" checked>
+                            <span>模式一：關鍵字篩選</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="mode" value="2">
+                            <span>模式二：所有留言者</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="mode" value="3">
+                            <span>模式三：標註指定數量帳號</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Conditional Parameters -->
+                <div id="mode-params">
+                    <!-- Mode 1: Keyword -->
+                    <div id="mode-1-params" class="mode-params">
+                        <div class="form-group">
+                            <label for="keyword">關鍵字</label>
+                            <input type="text" id="keyword" name="keyword" placeholder="輸入篩選關鍵字">
+                        </div>
+                    </div>
+
+                    <!-- Mode 3: Mention Count -->
+                    <div id="mode-3-params" class="mode-params" style="display: none;">
+                        <div class="form-group">
+                            <label for="mention-count">需標註帳號數量</label>
+                            <input type="number" id="mention-count" name="mention_count" min="1" value="1">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Winner Count -->
+                <div class="form-group">
+                    <label for="winner-count">中獎人數</label>
+                    <input type="number" id="winner-count" name="winner_count" min="1" value="1" required>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-primary">開始抽獎</button>
+            </form>
+
+            <!-- Loading Indicator -->
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>正在爬取留言資料，請稍候...</p>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results" class="results" style="display: none;">
+                <h2>抽獎結果</h2>
+                <div class="result-info">
+                    <p>抽獎時間：<span id="result-time"></span></p>
+                    <p>抽獎模式：<span id="result-mode"></span></p>
+                    <p>總參與人數：<span id="result-total"></span></p>
+                </div>
+                <div id="winners-list" class="winners-list"></div>
+                <div class="result-actions">
+                    <button id="download-btn" class="btn btn-success">下載 Excel</button>
+                    <button id="reset-btn" class="btn btn-secondary">重新抽獎</button>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>© 2024 Lottery Web - Built with Flask</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
