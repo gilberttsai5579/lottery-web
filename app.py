@@ -61,17 +61,34 @@ def register_routes(app):
             
             # Validate inputs
             if not url:
-                return jsonify({'error': 'URL is required'}), 400
+                return jsonify({
+                    'success': False,
+                    'error': '請提供貼文網址',
+                    'error_type': 'validation_error'
+                }), 400
             
             if mode not in ['1', '2', '3']:
-                return jsonify({'error': 'Invalid lottery mode'}), 400
+                return jsonify({
+                    'success': False,
+                    'error': '無效的抽獎模式，請選擇模式 1、2 或 3',
+                    'error_type': 'validation_error'
+                }), 400
             
             if winner_count < 1:
-                return jsonify({'error': 'Winner count must be at least 1'}), 400
+                return jsonify({
+                    'success': False,
+                    'error': '中獎人數必須至少為 1 人',
+                    'error_type': 'validation_error'
+                }), 400
             
             # Check if URL is supported
             if not ScraperFactory.is_supported_url(url):
-                return jsonify({'error': 'Unsupported URL format. Please use Threads or Instagram post URLs.'}), 400
+                return jsonify({
+                    'success': False,
+                    'error': '不支援的網址格式，請使用有效的 Threads 或 Instagram 貼文網址',
+                    'error_type': 'url_validation_error',
+                    'supported_platforms': ScraperFactory.get_supported_platforms()
+                }), 400
             
             # Conduct lottery
             try:
@@ -88,16 +105,31 @@ def register_routes(app):
                 
             except ScrapingError as e:
                 app.logger.error(f"Scraping error: {e}")
-                return jsonify({'error': f'Failed to scrape comments: {str(e)}'}), 400
+                return jsonify({
+                    'success': False,
+                    'error': f'無法爬取留言資料：{str(e)}',
+                    'error_type': 'scraping_error',
+                    'details': str(e)
+                }), 400
             
             except ValueError as e:
                 app.logger.error(f"Validation error: {e}")
-                return jsonify({'error': str(e)}), 400
+                return jsonify({
+                    'success': False,
+                    'error': f'參數驗證失敗：{str(e)}',
+                    'error_type': 'validation_error',
+                    'details': str(e)
+                }), 400
             
         except Exception as e:
             app.logger.error(f"Lottery error: {str(e)}")
             app.logger.error(traceback.format_exc())
-            return jsonify({'error': 'An unexpected error occurred during lottery'}), 500
+            return jsonify({
+                'success': False,
+                'error': '抽獎過程中發生未預期的錯誤',
+                'error_type': 'internal_error',
+                'details': str(e) if app.debug else '請聯繫系統管理員'
+            }), 500
     
     @app.route('/preview', methods=['POST'])
     def preview():
